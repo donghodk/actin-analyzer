@@ -1,0 +1,12 @@
+
+__pycache__/im_utils.cpython-37.pyc
+__pycache__/contours.cpython-37.pyc
+__pycache__/class_filament.cpython-37.pyc
+plots/Boxplot_of_skeleton_lengths.png
+plots/Histogram_of_skeleton_lengths.png
+test_data/Ex1_50Hz_1000ms_1_PHALLO.tif
+test_data/qualiti_test_img/Ex1_50Hz_cont_10_PHALLO.tif
+test_data/qualiti_test_img/Ex1_50Hz_var_8_PHALLO.tif
+test_data/qualiti_test_img/Ex1_ctr_8_PHALLO.tif
+Actin_analyzer_demo.ipynb
+.ipynb_checkpoints/Actin_analyzer_demo-checkpoint.ipynb
