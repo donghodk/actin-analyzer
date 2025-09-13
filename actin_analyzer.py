@@ -6,20 +6,34 @@ Program to get features from fluorescence images, especially actin filaments
 Dongho_branch
 """
 
+# TODO 20250816: colorama (done)
+# TODO 20250906: add timer to measure run time of the script (done)
+# TODO 20250913: tidy up plotting and make them logical
+# TODO 20250913: make prints more logical
+
+### Starting a timer
+import time
+start_time = time.time()
+
+### Header
 print()
 print("***********************************************************")
-print("************************* AA ******************************")
+print("******************* Actin Analyzer ************************")
 print("***************************************** Kwak/Combriat2020")
 print()
 
 #################
 # library imports
 #################
-import matplotlib.pyplot as plt  # plotting
-import numpy as np  # numerics
-#import math as math  # math
-#import skvideo.io  # video opener
+import os  as os
+import matplotlib.pyplot as plt
+import pandas as pd
+from tqdm import tqdm
+from colorama import init, Fore, Back
+import cv2
 import skimage.io as io
+from skimage.morphology import skeletonize
+from skimage import filters
 #import skimage.color
 #from skimage.filters import threshold_otsu
 #from skimage.feature import peak_local_max
@@ -27,45 +41,23 @@ import skimage.io as io
 #from scipy.ndimage.filters import laplace
 #from scipy.ndimage.filters import gaussian_gradient_magnitude
 #from scipy.ndimage import maximum_filter
-from skimage.morphology import skeletonize
-from skimage import filters
 #from scipy import fftpack
-from tqdm import tqdm  # fancy progress bar
 #from scipy.optimize import curve_fit  # fitting
-import os  as os # folder and file manipulation
 #from scipy.signal import savgol_filter
-import colorama as cl
-import cv2
-import pandas as pd
 
-cl.init()
-
-########################
+###############
 # local imports
-########################
+###############
 from sources.im_utils import *
+from sources.general_utils import *
 from sources.contours import *
 from sources.class_filament import *
 from sources.class_filament_group import *
 from parameters import *
 
-def my_histogram(a, n,rang):
-    hist, bin_edges = np.histogram(a,bins = n,range = rang)
-    centers = []
-    for i in range(len(hist)):
-        centers.append((bin_edges[i]+bin_edges[i+1])/2)
-    return hist,centers
-
-""" TODO
-  - opening the files (BEWARE: this has to be all-OS compatible (use os.sep to navigate and not "/" or "\\".))  DONE
-  - enhance contrast DONE
-  - find the pixels belonging to actin fibers  DONE
-  - feed these pixels into a "well-defined" filament object  DONE
-  - implement method for this object to compute the parameters we want  undergoing
-"""
-
-#####################
-## Global data containers
+########################
+# Global data containers
+########################
 names = []
 skeleton_lengths = []
 skeleton_angles = []
@@ -73,24 +65,23 @@ skeleton_thickness = []
 threshold_value = 0
 sep = os.sep
 
-## Parameters
-skeleton_length_low_threshold = 1 #For line 174-175
-gap_threshold = 5 #For line 207
-skeleton_length_low_threshold_after_gap = 10 #For line 222, comment out that line and plot below that if not using this parameter
+
+### Colorama initialization
+init(autoreset=True)
 
 try:
     os.mkdir(output_folder)
 except:
-    print("Folder already created!")
+    print("Attempted to create an output folder in the current directory, but it is already created!")
 
 ls = os.listdir(input_folder)
 
 for i in ls:
-    if (i.split("_")[-1] == "img1.tif"):
+    if (i.split(splitter)[-1] == target_image_suffix):
     
         names.append(str(i))
 
-        print(cl.Fore.BLUE + "- Opening file: " + cl.Style.RESET_ALL + cl.Back.BLUE + i + cl.Style.RESET_ALL)
+        print(Fore.BLUE + "- Opening file: " + Fore.WHITE + Back.BLUE + i)
 
         #### Loading an image, applying a few filters
         raw_img = io.imread(input_folder + sep + i) #These are more than 8bits images
@@ -105,7 +96,7 @@ for i in ls:
 
         #### Automatically finding a good threshold value: the mean of laplacian corresponds to the background, we take only pixels that are away of one std from this mean
         threshold_value = np.mean(lap_green.flatten())-np.std(lap_green.flatten())
-        print(cl.Fore.BLUE + "Taking an automatic threshold value of " + cl.Style.RESET_ALL + cl.Back.BLUE + str(threshold_value) + cl.Style.RESET_ALL)
+        print(Fore.BLUE + "Taking an automatic threshold value of "+ Fore.WHITE + Back.BLUE + str(threshold_value))
 
         thresholded_img = lap_green < np.array(filters.threshold_local(lap_green,25,offset = -threshold_value))
        
@@ -166,16 +157,16 @@ for i in ls:
         ########## FINDING FILAMENTS ############
         #########################################
             
-        print(cl.Fore.BLUE + "- Finding the contours... " + cl.Style.RESET_ALL)
+        print(Fore.BLUE + "- Finding the contours... ")
         contours = convex_contours(lap_green < np.array(filters.threshold_local(lap_green,25,offset = -threshold_value)))
 
-        print(cl.Fore.BLUE + "- Grouping the contours and computing skeletons... " + cl.Style.RESET_ALL)
+        print(Fore.BLUE + "- Grouping the contours and computing skeletons... ")
         filaments = filament_group()
         for j in tqdm(range(len(contours))):
             filaments.add_filament(filament(contours[j],len(raw_green),len(raw_green[0])))
-        print(cl.Fore.GREEN + "    Done! " + cl.Style.RESET_ALL)
+        print(Fore.GREEN + "Skeletonizing done! ")
         
-        print(cl.Fore.BLUE + "- Filtering... " + cl.Style.RESET_ALL)
+        print(Fore.BLUE + "- Filtering... ")
         filaments.filter_on_SL(skeleton_length_low_threshold,np.inf)
 
         filtered_filaments = filaments.get_skeleton_img_with_terminal_points(len(raw_green),len(raw_green[0]))
@@ -240,8 +231,8 @@ for i in ls:
             #import plotly.io as pio
             #pio.write_html(fig, file="Ex1_Hela_cont_15min_2_top_Out_MIP.html", auto_open=True) 
 
-        print(cl.Fore.GREEN + "    Done!" + cl.Style.RESET_ALL)
-        #print(cl.Back.GREEN + "    Raw statistics:" + cl.Style.RESET_ALL)
+        print(Fore.GREEN + "    Done!")
+        #print(Back.GREEN + "    Raw statistics:")
 
         #print("    Raw length:",(filaments.get_mean_raw_length()),"+/-", filaments.get_std_raw_length())
         #print("    Skeleton length:",(filaments.get_mean_skeleton_length()),"+/-", filaments.get_std_skeleton_length())
@@ -295,8 +286,13 @@ Lengths = pd.DataFrame(skeleton_lengths)
 Angles = pd.DataFrame(skeleton_angles)
 Thickness = pd.DataFrame(skeleton_thickness)
 
-Skeleton_names.to_csv('nv_names.csv')
-Lengths.to_csv('nv_lengths.csv')
-Angles.to_csv('nv_angles.csv')
-Thickness.to_csv('nv_thickness.csv')
+Skeleton_names.to_csv('output' + sep + 'names.csv')
+Lengths.to_csv('output' + sep + 'lengths.csv')
+Angles.to_csv('output' + sep + 'angles.csv')
+Thickness.to_csv('output' + sep + 'thicknesses.csv')
 
+
+### Stopping the timer
+end_time = time.time()
+elapsed_time = end_time - start_time
+print(f"Elapsed time: {elapsed_time:.2f} seconds")
