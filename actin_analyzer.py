@@ -71,7 +71,7 @@ init(autoreset=True)
 
 try:
     os.mkdir(output_folder)
-except:
+except FileExistsError:
     print("Attempted to create an output folder in the current directory, but it is already created!")
 
 ls = os.listdir(input_folder)
